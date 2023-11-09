@@ -1,11 +1,11 @@
 const jwt = require("jsonwebtoken");
 const { userModel } = require("../models/userModel");
 let user_id;
-
+const JWT_SECRET_KEY="asdglkjklj09876"
 const requireSignin = async (req, res, next) => {
   try {
     const token = req.headers.authorization;
-    const decoded = jwt.verify(token, process.env.JWT_SECRET_KEY,{expiresIn:'500s'});
+    const decoded = jwt.verify(token, JWT_SECRET_KEY,{expiresIn:'500s'});
     if (decoded) {
        user_id = decoded.id;
        next();

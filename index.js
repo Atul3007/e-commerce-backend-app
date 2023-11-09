@@ -15,7 +15,7 @@ app.use(
   cors()
 );
 
-const port = process.env.PORT; // Use uppercase PORT
+const port = 8000; // Use uppercase PORT
 
 app.use("/api/", router);
 app.use("/api/category/",categoryrouter)
@@ -36,5 +36,5 @@ app.listen(port, async () => {
   } catch (error) {
     console.log("Error occurred");
   }
-  console.log(`Running on ${port}`);
+  console.log(`Running on 8000`);
 });
