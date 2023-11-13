@@ -1,6 +1,17 @@
 const { productModel } = require("../models/productModel");
+const { categoryModel } = require("../models/categoryModel");
+const { orderModel } = require("../models/OrderModel");
 const { default: slugify } = require("slugify");
 const fs = require("fs");
+
+var braintree = require("braintree");
+
+var gateway = new braintree.BraintreeGateway({
+  environment: braintree.Environment.Sandbox,
+  merchantId: process.env.BRAINTREE_MERCHANTID,
+  publicKey: process.env.BRAINTREE_PUBLICKEY,
+  privateKey: process.env.BRAINTREE_PRIVATEKEY,
+});
 
 const createProduct = async (req, res) => {
   try {
@@ -111,9 +122,9 @@ const getProduct = async (req, res) => {
 
 const getSingleProduct = async (req, res) => {
   try {
-    const slug = req.params.slug;
+    const id = req.params.pid;
     const product = await productModel
-      .findOne({ slug })
+      .findById(id)
       .select("-photo")
       .populate("category");
     if (!product) {
@@ -262,7 +273,198 @@ const searchProduct = async (req, res) => {
   }
 };
 
+const relatedProduct = async (req, res) => {
+  try {
+    const { pid, cid } = req.params;
+    //console.log(pid,cid)
+    const products = await productModel
+      .find({
+        category: cid,
+        _id: { $ne: pid },
+      })
+      .select("-photo")
+      .limit(5)
+      .populate("category");
+    res.status(200).send({
+      success: true,
+      products,
+    });
+  } catch (error) {
+    res.status(400).send({
+      success: false,
+      error: error.message,
+      message: "Error in getting related products",
+    });
+  }
+};
+
+const categoryProduct = async (req, res) => {
+  try {
+    const slug = req.params.slug;
+    const category = await categoryModel.findOne({ slug });
+    const product = await productModel.find({ category }).populate("category");
+    res.status(200).send({
+      success: true,
+      product,
+    });
+    //console.log({category,slug});
+  } catch (error) {
+    res.status(400).send({
+      success: false,
+      error: error.message,
+      message: "Error in getting category products",
+    });
+  }
+};
+
+const token = async (req, res) => {
+  try {
+    gateway.clientToken.generate({}, (err, response) => {
+      res.send(response.clientToken);
+    });
+  } catch (error) {
+    res.status(400).send({
+      success: false,
+      error: error.message,
+      message: "Error in getting token for brain tree",
+    });
+  }
+};
+
+const payment = async (req, res) => {
+  try {
+    const { cart, nonce } = req.body;
+    let total = 0;
+    cart.map((c) => (total += c.price));
+    //console.log(total)
+    //const nonceFromTheClient = req.body.payment_method_nonce;
+    // gateway.transaction.sale({
+    //   amount: total,
+    //   paymentMethodNonce: nonce,
+    //   options: {
+    //     submitForSettlement: true
+    //   }
+    //}, (error, result) => {
+    //  if(result){
+    const order = new orderModel({
+      products: cart,
+      payment: result,
+      buyer: req.user.id,
+    }).save();
+    // }else{
+    //   res.status(400).send({
+    //     success: false,
+    //     error: error.message,
+    //     message: "Error in payment",
+    // });
+    // }
+    res.status(200).send({
+      success: true,
+      // })
+    });
+  } catch (error) {
+    res.status(400).send({
+      success: false,
+      error: error.message,
+      message: "Error in payment",
+    });
+  }
+};
+
+const cod = async (req, res) => {
+  try {
+    const { cart, id } = req.body;
+    let total = 0;
+    cart.map((c) => (total += c.price));
+    const order = await new orderModel({
+      products: cart,
+      payment: `${total} cod`,
+      buyer: id,
+    }).save();
+    // console.log({order });
+    res.status(200).send({
+      success: true,
+    });
+  } catch (error) {
+    res.status(400).send({
+      success: false,
+      error: error.message,
+      message: "Error in cod payment",
+    });
+  }
+};
+
+const order = async (req, res) => {
+  const { id } = req.params;
+  // console.log(id)
+  try {
+    const orders = await orderModel
+      .find({ buyer: id })
+      .populate("products", "-photo")
+      .populate("buyer", "name");
+    res.status(200).send({
+      success: true,
+      orders,
+    });
+    //console.log(orders)
+  } catch (error) {
+    res.status(400).send({
+      success: false,
+      error: error.message,
+      message: "Error in getting order",
+    });
+  }
+};
+
+const allOrder = async (req, res) => {
+  try {
+    const orders = await orderModel
+      .find({})
+      .populate("products", "-photo")
+      .populate("buyer", "name")
+      .sort({ createAt: "-1" });
+
+      res.status(200).send({
+        success: true,
+        orders
+      });
+  } catch (error) {
+    res.status(400).send({
+      success: false,
+      error: error.message,
+      message: "Error in getting all order",
+    });
+  }
+};
+
+const updateStatus=async(req,res)=>{
+  try {
+    const {status}=req.body;
+    const {orderId}=req.params;
+    console.log({status,orderId})
+    const order = await orderModel.findByIdAndUpdate({_id:orderId},{status},{new:true});
+    res.status(200).send({
+        success: true,
+        message:"Status updated successfully"  
+      });
+  } catch (error) {
+    res.status(400).send({
+      success: false,
+      error: error.message,
+      message: "Error in updating order",
+    });
+  }}
+
+
 module.exports = {
+  updateStatus,
+  allOrder,
+  order,
+  cod,
+  payment,
+  token,
+  categoryProduct,
+  relatedProduct,
   searchProduct,
   productPerPage,
   productCount,
