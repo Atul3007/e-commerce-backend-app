@@ -1,6 +1,7 @@
 const { userModel } = require("./../models/userModel");
 const { hashpass, comparePass } = require("../helper/authHelper");
 const jwt = require("jsonwebtoken");
+let JWT_SECRET_KEY="asdglkjklj09876"
 
 const registerController = async (req, res) => {
   try {
@@ -56,7 +57,7 @@ const loginController = async (req, res) => {
     const compare = await comparePass(password, user.password);
     //console.log(user)
     if (compare) {
-      let jwtSecretKey = process.env.JWT_SECRET_KEY;
+      let jwtSecretKey = JWT_SECRET_KEY;
       const token = jwt.sign({ id: user._id }, jwtSecretKey);
       res.status(200).json({ message: "login success", token, user });
     } else {
